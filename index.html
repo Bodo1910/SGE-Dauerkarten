@@ -312,6 +312,48 @@
     border:1px solid #3ba55d; padding:1px 5px; margin-left:6px;
   }
 
+  /* NEXT GAME */
+  .game.is-next{
+    border-color:var(--red);
+    box-shadow: 0 0 0 1px var(--red);
+  }
+  .next-badge{
+    display:inline-block; font-size:10.5px; letter-spacing:0.06em;
+    text-transform:uppercase; color:#fff; background:var(--red);
+    padding:2px 7px; margin-left:8px;
+  }
+
+  .countdown-banner{
+    margin-top:20px;
+    display:flex; flex-wrap:wrap; align-items:center; gap:14px;
+    background:rgba(226,0,26,0.08);
+    border:1px solid var(--red);
+    padding:12px 18px;
+  }
+  .cd-label{
+    font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--grey);
+  }
+  .cd-days{
+    font-family:'Oswald',sans-serif; font-size:19px; font-weight:700; color:var(--red);
+  }
+  .cd-vs{display:flex; align-items:center; gap:6px; color:var(--cream); font-size:14px; font-weight:700;}
+  .cd-date{color:var(--grey); font-size:13px; margin-left:auto;}
+
+  /* GUEST FIELD */
+  .person-top{display:flex; align-items:center; justify-content:space-between;}
+  .gast-field{
+    width:100%; margin-top:6px;
+    background:var(--black); border:1px solid var(--line);
+    color:var(--cream); font-family:'Space Mono',monospace;
+    font-size:12px; padding:5px 8px;
+  }
+  .gast-field:focus{outline:none; border-color:var(--red);}
+  .gast-field::placeholder{color:#5a5a5d;}
+  .gast-readonly{
+    margin-top:5px; font-size:11.5px; color:var(--grey); font-style:italic;
+  }
+
   /* RESPONSIVE — general pass for phones/small tablets */
   @media (max-width:768px){
     .wrap{padding:0 14px;}
@@ -519,6 +561,7 @@
     <div class="eyebrow">Deutsche Bank Park · Saison 2026/27</div>
     <h1>5 Karten. <span>17 Heimspiele.</span><br>4 Leute.</h1>
     <div class="sub">Jeder wählt pro Spiel, wie viele der 5 Dauerkarten er will (0–5). Reicht die Nachfrage nicht für alle 5, bekommt jeder genau was er wollte. Ist die Nachfrage höher, verteilt das Tool die 5 Karten automatisch proportional zur Nachfrage.</div>
+    <div class="countdown-banner" id="countdownBanner"></div>
     <div class="logout-bar">
       <span>Angemeldet als <b id="whoLabel" style="color:var(--cream);"></b></span>
       <button id="logoutBtn">Abmelden</button>
@@ -653,6 +696,16 @@ async function fetchFixtures(){
           g.confirmed = true;
         }
       }
+      if(match && match.matchIsFinished){
+        let res = null;
+        if(Array.isArray(match.matchResults) && match.matchResults.length){
+          res = match.matchResults.find(r=>r.resultTypeID === 2) || match.matchResults[match.matchResults.length-1];
+        }
+        if(res){
+          g.finished = true;
+          g.result = `${res.pointsTeam1}:${res.pointsTeam2}`;
+        }
+      }
     });
   }catch(e){
     console.warn('OpenLigaDB nicht erreichbar, nutze hinterlegte Termine.', e);
@@ -690,7 +743,7 @@ let currentUser = null; // {name, username, password}
 let selections = {}; // { spNumber: {Leo:0,...} }
 let saveTimers = {};
 
-function emptyReq(){ return {Leo:0,Andy:0,Oli:0,Bodo:0,Notiz:''}; }
+function emptyReq(){ return {Leo:0,Andy:0,Oli:0,Bodo:0,Notiz:'',LeoGast:'',AndyGast:'',OliGast:'',BodoGast:''}; }
 
 async function callApi(payload){
   const res = await fetch(APPS_SCRIPT_URL, {
@@ -801,20 +854,27 @@ function getReq(sp){
   return selections[sp];
 }
 
-function buildGameCard(g){
+function buildGameCard(g, isNext){
   const req = getReq(g.sp);
   const alloc = allocate(req);
   const total = NAMES.reduce((s,n)=>s+req[n],0);
   const past = isPastGame(g);
 
   const el = document.createElement('div');
-  el.className = 'game' + (past ? ' is-past' : '');
+  el.className = 'game' + (past ? ' is-past' : '') + (isNext ? ' is-next' : '');
+
+  let timeLine;
+  if(g.finished && g.result){
+    timeLine = `Endstand ${g.result}`;
+  } else {
+    timeLine = (g.time ? g.time+' Uhr' : 'Zeit offen') + (g.confirmed ? '<span class="confirmed-badge">bestätigt</span>' : '');
+  }
 
   el.innerHTML = `
     <div class="stub-left">
-      <div class="sp-badge">Spieltag ${g.sp}${past ? '<span class="past-badge">Vorbei</span>' : ''}</div>
+      <div class="sp-badge">Spieltag ${g.sp}${past ? '<span class="past-badge">Vorbei</span>' : ''}${isNext ? '<span class="next-badge">Nächstes Spiel</span>' : ''}</div>
       <div class="date">${g.day}, ${g.date}</div>
-      <div class="time">${g.time ? g.time+' Uhr' : 'Zeit offen'}${g.confirmed ? '<span class="confirmed-badge">bestätigt</span>' : ''}</div>
+      <div class="time">${timeLine}</div>
     </div>
     <div class="stub-mid">
       <div class="vs">Eintracht Frankfurt — Heim</div>
@@ -829,16 +889,23 @@ function buildGameCard(g){
       <div class="person-rows">
         ${NAMES.map(n=>{
           const editable = !past && n === currentUser.name;
+          const gastKey = n + 'Gast';
+          const gastVal = req[gastKey] || '';
           return `
           <div class="person ${editable?'me':''}" data-name="${n}" data-sp="${g.sp}">
-            <span class="pname">${n}</span>
-            ${editable ? `
-              <div class="stepper">
-                <button class="dec">–</button>
-                <span class="val">${req[n]}</span>
-                <button class="inc">+</button>
-              </div>
-            ` : `<span class="val-readonly">${req[n]}</span>`}
+            <div class="person-top">
+              <span class="pname">${n}</span>
+              ${editable ? `
+                <div class="stepper">
+                  <button class="dec">–</button>
+                  <span class="val">${req[n]}</span>
+                  <button class="inc">+</button>
+                </div>
+              ` : `<span class="val-readonly">${req[n]}</span>`}
+            </div>
+            ${editable && req[n] > 0 ? `
+              <input type="text" class="gast-field" data-sp="${g.sp}" data-name="${n}" value="${gastVal.replace(/"/g,'&quot;')}" placeholder="Für wen? (optional)">
+            ` : (gastVal ? `<div class="gast-readonly">${gastVal}</div>` : '')}
           </div>
         `;}).join('')}
       </div>
@@ -859,13 +926,18 @@ function render(){
   const upcoming = GAMES.filter(g=>!isPastGame(g));
   const past = GAMES.filter(g=>isPastGame(g));
 
+  // Nächstes Spiel ermitteln (frühestes Enddatum unter den kommenden Spielen)
+  const sortedUpcoming = [...upcoming].sort((a,b)=> new Date(a.endDate) - new Date(b.endDate));
+  const nextGame = sortedUpcoming[0] || null;
+  renderCountdown(nextGame);
+
   const container = document.getElementById('games');
   container.innerHTML = '';
-  upcoming.forEach(g=> container.appendChild(buildGameCard(g)));
+  upcoming.forEach(g=> container.appendChild(buildGameCard(g, nextGame && g.sp === nextGame.sp)));
 
   const pastContainer = document.getElementById('gamesPast');
   pastContainer.innerHTML = '';
-  past.forEach(g=> pastContainer.appendChild(buildGameCard(g)));
+  past.forEach(g=> pastContainer.appendChild(buildGameCard(g, false)));
 
   const pastSection = document.getElementById('pastSection');
   const pastCountEl = document.getElementById('pastCount');
@@ -883,6 +955,17 @@ function render(){
       const req = getReq(sp);
       req.Notiz = ta.value;
       scheduleSave(sp, 'Notiz', ta.value);
+    });
+  });
+
+  container.querySelectorAll('.gast-field').forEach(inp=>{
+    const sp = inp.dataset.sp;
+    const name = inp.dataset.name;
+    const key = name + 'Gast';
+    inp.addEventListener('input', ()=>{
+      const req = getReq(sp);
+      req[key] = inp.value;
+      scheduleSave(sp, key, inp.value);
     });
   });
 
@@ -904,6 +987,36 @@ function render(){
   });
 
   renderBilling();
+}
+
+function renderCountdown(nextGame){
+  const el = document.getElementById('countdownBanner');
+  if(!nextGame){
+    el.style.display = 'none';
+    return;
+  }
+  const end = new Date(nextGame.endDate + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const days = Math.round((end - today) / 86400000);
+  const club = CLUB[nextGame.opp];
+  let daysText;
+  if(days <= 0) daysText = 'Heute';
+  else if(days === 1) daysText = 'Morgen';
+  else daysText = `In ${days} Tagen`;
+
+  el.style.display = '';
+  el.innerHTML = `
+    <span class="cd-label">Nächstes Heimspiel</span>
+    <span class="cd-days">${daysText}</span>
+    <span class="cd-vs">
+      <span class="badge home" style="width:24px;height:24px;font-size:9px;">SGE</span>
+      <span class="badge-x" style="font-size:11px;">×</span>
+      <span class="badge" style="width:24px;height:24px;font-size:9px;background:${club.bg};color:${club.fg};">${club.abbr}</span>
+      ${nextGame.opp}
+    </span>
+    <span class="cd-date">${nextGame.day}, ${nextGame.date}${nextGame.confirmed ? ' · '+nextGame.time+' Uhr' : ''}</span>
+  `;
 }
 
 
