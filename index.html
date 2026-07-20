@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Dauerkarten-Planer — Eintracht Frankfurt 2026/27</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -34,7 +34,9 @@
     color:var(--cream);
     font-family:'Space Mono', monospace;
     min-height:100vh;
-    padding-bottom:80px;
+    padding-bottom:calc(80px + env(safe-area-inset-bottom));
+    padding-left:env(safe-area-inset-left);
+    padding-right:env(safe-area-inset-right);
   }
   h1,h2,h3,.disp{
     font-family:'Oswald', sans-serif;
@@ -162,6 +164,30 @@
   }
   .vs{font-size:12px;color:var(--grey);letter-spacing:.15em;margin-bottom:4px;}
   .matchup{display:flex; align-items:center; gap:10px;}
+  .capacity-row{
+    margin-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  }
+  .capacity-row label{
+    font-size:11px; color:var(--grey); text-transform:uppercase; letter-spacing:0.06em;
+  }
+  .capacity-stepper{
+    display:flex; align-items:center; gap:10px;
+  }
+  .capacity-stepper button{
+    width:38px; height:38px;
+    background:var(--panel-2); border:1px solid var(--line);
+    color:var(--cream); font-family:'Space Mono',monospace;
+    font-size:19px; line-height:1; cursor:pointer;
+    touch-action:manipulation;
+  }
+  .capacity-stepper button:active{border-color:var(--red); color:var(--red);}
+  .capacity-stepper .cap-val{
+    min-width:26px; text-align:center;
+    font-family:'Oswald',sans-serif; font-size:18px; font-weight:700; color:var(--gold);
+  }
+  .cap-readonly{
+    font-family:'Oswald',sans-serif; font-size:15px; font-weight:700; color:var(--gold);
+  }
   .badge{
     width:34px; height:34px;
     border-radius:6px;
@@ -198,14 +224,15 @@
   .pname{font-size:14px; color:var(--cream); font-weight:700;}
   .stepper{display:flex; align-items:center; gap:6px;}
   .stepper button{
-    width:26px;height:26px;
+    width:34px;height:34px;
     background:var(--black);
     border:1px solid var(--line);
     color:var(--cream);
     font-family:'Space Mono',monospace;
-    font-size:15.5px;
+    font-size:18px;
     cursor:pointer;
     line-height:1;
+    touch-action:manipulation;
   }
   .stepper button:hover{border-color:var(--red); color:var(--red);}
   .stepper .val{
@@ -232,7 +259,7 @@
     width:100%; min-height:44px; resize:vertical;
     background:var(--panel-2); border:1px solid var(--line);
     color:var(--cream); font-family:'Space Mono',monospace;
-    font-size:14px; padding:8px 10px; line-height:1.5;
+    font-size:16px; padding:8px 10px; line-height:1.5;
   }
   .note-field:focus{outline:none; border-color:var(--red);}
   .note-field::placeholder{color:#5a5a5d;}
@@ -260,6 +287,31 @@
   .sync button:hover{border-color:var(--red); color:var(--red);}
   .dot{width:6px;height:6px;border-radius:50%;background:#3ba55d;}
   .dot.saving{background:var(--gold);}
+
+  @keyframes saveFlash{
+    0%{ box-shadow:0 0 0 2px rgba(59,165,93,0); }
+    25%{ box-shadow:0 0 0 2px rgba(59,165,93,0.9); }
+    100%{ box-shadow:0 0 0 2px rgba(59,165,93,0); }
+  }
+  .save-flash{ animation:saveFlash 0.7s ease-out; }
+
+  .pull-indicator{
+    position:fixed; top:0; left:0; right:0;
+    text-align:center;
+    padding:12px;
+    padding-top:calc(12px + env(safe-area-inset-top));
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+    color:var(--grey);
+    font-size:12px;
+    letter-spacing:0.04em;
+    transform:translateY(-100%);
+    transition:transform 0.15s ease-out;
+    z-index:150;
+  }
+  .pull-indicator.visible{ transition:none; }
+  .pull-indicator.ready{ color:var(--red); }
+  .pull-indicator.loading{ transform:translateY(0); transition:transform 0.15s ease-out; color:var(--gold); }
 
   .test-toggle-row{
     display:flex; justify-content:center; margin-top:10px;
@@ -346,7 +398,7 @@
     width:100%; margin-top:6px;
     background:var(--black); border:1px solid var(--line);
     color:var(--cream); font-family:'Space Mono',monospace;
-    font-size:12px; padding:5px 8px;
+    font-size:16px; padding:7px 8px;
   }
   .gast-field:focus{outline:none; border-color:var(--red);}
   .gast-field::placeholder{color:#5a5a5d;}
@@ -371,7 +423,6 @@
     .sub{font-size:14px;}
     .bill-summary{grid-template-columns:1fr;}
     .person{flex:1 1 100%;}
-    .stepper button{width:26px; height:26px; font-size:16.5px;}
     .login-box{padding:24px 20px;}
   }
   .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
@@ -381,6 +432,10 @@
   .tabs{
     display:flex; gap:0; margin-top:28px;
     border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:60;
+    background:rgba(12,12,13,0.97);
+    backdrop-filter:blur(4px);
+    padding-top:env(safe-area-inset-top);
   }
   .tab-btn{
     font-family:'Oswald',sans-serif;
@@ -540,6 +595,7 @@
 </div>
 
 <div id="app" class="app-hidden">
+<div class="pull-indicator" id="pullIndicator">↓ Ziehen zum Aktualisieren</div>
 
 <div class="hero">
   <svg class="hero-watermark" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -559,8 +615,8 @@
   </svg>
   <div class="wrap">
     <div class="eyebrow">Deutsche Bank Park · Saison 2026/27</div>
-    <h1>5 Karten. <span>17 Heimspiele.</span><br>4 Leute.</h1>
-    <div class="sub">Jeder wählt pro Spiel, wie viele der 5 Dauerkarten er will (0–5). Reicht die Nachfrage nicht für alle 5, bekommt jeder genau was er wollte. Ist die Nachfrage höher, verteilt das Tool die 5 Karten automatisch proportional zur Nachfrage.</div>
+    <h1>Flexible Karten. <span>17 Heimspiele.</span><br>4 Leute.</h1>
+    <div class="sub">Jeder wählt pro Spiel, wie viele Karten er will. Das Kartenangebot ist je Spiel einstellbar (siehe Feld "Kartenangebot"). Reicht die Nachfrage nicht aus, bekommt jeder genau was er wollte. Ist die Nachfrage höher, verteilt das Tool die verfügbaren Karten automatisch proportional. Spiele mit 0 Karten werden ausgeblendet.</div>
     <div class="countdown-banner" id="countdownBanner"></div>
     <div class="logout-bar">
       <span>Angemeldet als <b id="whoLabel" style="color:var(--cream);"></b></span>
@@ -577,10 +633,10 @@
 
   <div class="tab-panel active" id="panel-tickets">
     <div class="rule-box">
-      <b>Verteilungsregel:</b> Summe der Wünsche ≤ 5 → jeder bekommt exakt seine Wunschzahl.
-      Summe &gt; 5 → die 5 Karten werden nach dem <b>Höchstzahlverfahren</b> proportional zur Nachfrage aufgeteilt
-      (niemand bekommt mehr als er wollte). Änderungen werden automatisch gespeichert und sind für alle sichtbar,
-      sobald sie neu laden.
+      <b>Verteilungsregel:</b> Summe der Wünsche ≤ Kartenangebot → jeder bekommt exakt seine Wunschzahl.
+      Summe &gt; Kartenangebot → die verfügbaren Karten werden nach dem <b>Höchstzahlverfahren</b> proportional zur Nachfrage aufgeteilt
+      (niemand bekommt mehr als er wollte). Das Kartenangebot je Spiel legt Bodo oben bei "Kartenangebot für dieses Spiel" fest — bei 0 wird das Spiel komplett ausgeblendet.
+      Änderungen werden automatisch gespeichert und sind für alle sichtbar, sobald sie neu laden.
     </div>
 
     <div class="games" id="games"></div>
@@ -712,12 +768,12 @@ async function fetchFixtures(){
   }
 }
 const NAMES = ['Leo','Andy','Oli','Bodo'];
-const CAPACITY = 5;
+const DEFAULT_CAPACITY = 5; // Fallback, falls für einen Spieltag noch kein Kartenangebot hinterlegt ist
 const PRICE = 42;
 const PREPAID = {Leo:0, Andy:0, Oli:0, Bodo:0};
 
 // Nach dem Setup (siehe Setup-Anleitung.md) hier die Web-App-URL aus Google Apps Script eintragen:
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwRydZWDcefGTHSbbY1Df41i8EehuOUGu8C7ghAE-ODPBRdPle8JP0JCr4Gfca4ztc/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzQcnd3lfHQOkSM4aL3baMQVtA-7u5YohSGdYwrXoKwlY65eX8kBIY_ebp4S6DaSmz8/exec';
 
 const CLUB = {
   'FC Augsburg':               {abbr:'FCA', bg:'#BA3733', fg:'#ffffff', kw:'Augsburg'},
@@ -743,7 +799,12 @@ let currentUser = null; // {name, username, password}
 let selections = {}; // { spNumber: {Leo:0,...} }
 let saveTimers = {};
 
-function emptyReq(){ return {Leo:0,Andy:0,Oli:0,Bodo:0,Notiz:'',LeoGast:'',AndyGast:'',OliGast:'',BodoGast:''}; }
+function emptyReq(){ return {Leo:0,Andy:0,Oli:0,Bodo:0,Notiz:'',LeoGast:'',AndyGast:'',OliGast:'',BodoGast:'',Capacity:DEFAULT_CAPACITY}; }
+
+function getCapacity(req){
+  const c = Number(req.Capacity);
+  return (isNaN(c) || c < 0) ? DEFAULT_CAPACITY : c;
+}
 
 async function callApi(payload){
   const res = await fetch(APPS_SCRIPT_URL, {
@@ -780,9 +841,9 @@ async function doLogin(username, password){
 }
 
 // Largest-remainder / Hare-quota allocation, capped by each person's request
-function allocate(req){
+function allocate(req, capacity){
   const total = NAMES.reduce((s,n)=>s+req[n],0);
-  if(total <= CAPACITY){
+  if(total <= capacity){
     const out = {...req};
     return out;
   }
@@ -790,12 +851,12 @@ function allocate(req){
   const base = {};
   let baseSum = 0;
   NAMES.forEach(n=>{
-    const q = CAPACITY * (req[n]/total);
+    const q = capacity * (req[n]/total);
     quotas[n] = q;
     base[n] = Math.floor(q);
     baseSum += base[n];
   });
-  let remainder = CAPACITY - baseSum;
+  let remainder = capacity - baseSum;
   const order = NAMES.filter(n=>req[n]>0)
     .sort((a,b)=> (quotas[b]-base[b]) - (quotas[a]-base[a]));
   let i = 0;
@@ -821,7 +882,7 @@ async function loadData(){
     const result = await callApi({action:'load', username: currentUser.username, password: currentUser.password});
     if(result.ok){
       selections = {};
-      Object.keys(result.data).forEach(sp=>{ selections[sp] = result.data[sp]; });
+      Object.keys(result.data).forEach(sp=>{ selections[sp] = Object.assign(emptyReq(), result.data[sp]); });
     }
   }catch(e){
     console.error('Laden fehlgeschlagen', e);
@@ -829,7 +890,7 @@ async function loadData(){
   render();
 }
 
-function scheduleSave(sp, person, value){
+function scheduleSave(sp, person, value, flashSelector){
   setSyncState('saving');
   const key = sp + '|' + person;
   if(saveTimers[key]) clearTimeout(saveTimers[key]);
@@ -842,11 +903,22 @@ function scheduleSave(sp, person, value){
         sp, person, tickets: value
       });
       setSyncState(result.ok ? 'saved' : 'error');
+      if(result.ok && flashSelector) flashField(flashSelector);
     }catch(e){
       setSyncState('error');
     }
     delete saveTimers[key];
   }, 400);
+}
+
+function flashField(selector){
+  const el = document.querySelector(selector);
+  if(!el) return;
+  el.classList.remove('save-flash');
+  // reflow, damit die Animation bei wiederholtem Speichern erneut startet
+  void el.offsetWidth;
+  el.classList.add('save-flash');
+  setTimeout(()=> el.classList.remove('save-flash'), 700);
 }
 
 function getReq(sp){
@@ -856,7 +928,8 @@ function getReq(sp){
 
 function buildGameCard(g, isNext){
   const req = getReq(g.sp);
-  const alloc = allocate(req);
+  const capacity = getCapacity(req);
+  const alloc = allocate(req, capacity);
   const total = NAMES.reduce((s,n)=>s+req[n],0);
   const past = isPastGame(g);
 
@@ -884,6 +957,16 @@ function buildGameCard(g, isNext){
         <div class="badge" style="background:${CLUB[g.opp].bg}; color:${CLUB[g.opp].fg};">${CLUB[g.opp].abbr}</div>
         <div class="opp">${g.opp}</div>
       </div>
+      <div class="capacity-row">
+        <label>Kartenangebot für dieses Spiel</label>
+        ${currentUser.name === 'Bodo' ? `
+          <div class="capacity-stepper" data-sp="${g.sp}">
+            <button class="cap-dec" type="button">–</button>
+            <span class="cap-val">${capacity}</span>
+            <button class="cap-inc" type="button">+</button>
+          </div>
+        ` : `<span class="cap-readonly">${capacity} Karten</span>`}
+      </div>
     </div>
     <div class="stub-right">
       <div class="person-rows">
@@ -892,7 +975,7 @@ function buildGameCard(g, isNext){
           const gastKey = n + 'Gast';
           const gastVal = req[gastKey] || '';
           return `
-          <div class="person ${editable?'me':''}" data-name="${n}" data-sp="${g.sp}">
+          <div class="person ${editable?'me':''}" data-name="${n}" data-sp="${g.sp}" data-cap="${capacity}">
             <div class="person-top">
               <span class="pname">${n}</span>
               ${editable ? `
@@ -910,7 +993,7 @@ function buildGameCard(g, isNext){
         `;}).join('')}
       </div>
       <div class="alloc-row">
-        <span>Nachfrage: <span class="${total>CAPACITY?'over':'total'}">${total} / ${CAPACITY}</span></span>
+        <span>Nachfrage: <span class="${total>capacity?'over':'total'}">${total} / ${capacity}</span></span>
         <span class="alloc-detail">${NAMES.filter(n=>alloc[n]>0).map(n=>n+': '+alloc[n]).join('  ·  ') || '—'}</span>
       </div>
       <div class="note-row">
@@ -923,8 +1006,9 @@ function buildGameCard(g, isNext){
 }
 
 function render(){
-  const upcoming = GAMES.filter(g=>!isPastGame(g));
-  const past = GAMES.filter(g=>isPastGame(g));
+  const visibleGames = GAMES.filter(g => getCapacity(getReq(g.sp)) > 0);
+  const upcoming = visibleGames.filter(g=>!isPastGame(g));
+  const past = visibleGames.filter(g=>isPastGame(g));
 
   // Nächstes Spiel ermitteln (frühestes Enddatum unter den kommenden Spielen)
   const sortedUpcoming = [...upcoming].sort((a,b)=> new Date(a.endDate) - new Date(b.endDate));
@@ -948,13 +1032,42 @@ function render(){
     pastCountEl.textContent = `(${past.length})`;
   }
 
+  // Kartenangebot je Spiel — für alle änderbar, auch bei vergangenen Spielen (Korrektur im Nachhinein möglich)
+  document.querySelectorAll('.capacity-stepper').forEach(stepper=>{
+    const sp = stepper.dataset.sp;
+    const updateCapacity = (delta)=>{
+      const req = getReq(sp);
+      const current = getCapacity(req);
+      const val = Math.max(0, Math.min(20, current + delta));
+
+      if(delta < 0){
+        const totalDemand = NAMES.reduce((s,n)=> s + (req[n]||0), 0);
+        if(val < totalDemand){
+          const ok = confirm(
+            `Die Nachfrage für dieses Spiel liegt aktuell bei ${totalDemand} Karten.\n` +
+            `Mit einem Kartenangebot von ${val} bekommt nicht mehr jeder automatisch so viele Karten wie gewünscht — ` +
+            `die Verteilung wird dann proportional gekürzt (die eingetragenen Wunschzahlen selbst bleiben aber erhalten).\n\n` +
+            `Trotzdem fortfahren?`
+          );
+          if(!ok) return;
+        }
+      }
+
+      req.Capacity = val;
+      scheduleSave(sp, 'Capacity', val, `.capacity-stepper[data-sp="${sp}"] .cap-val`);
+      render();
+    };
+    stepper.querySelector('.cap-inc').addEventListener('click', ()=> updateCapacity(1));
+    stepper.querySelector('.cap-dec').addEventListener('click', ()=> updateCapacity(-1));
+  });
+
   // Notiz bleibt bei vergangenen Spielen bearbeitbar? Nein - nur bei kommenden.
   container.querySelectorAll('.note-field').forEach(ta=>{
     const sp = ta.dataset.sp;
     ta.addEventListener('input', ()=>{
       const req = getReq(sp);
       req.Notiz = ta.value;
-      scheduleSave(sp, 'Notiz', ta.value);
+      scheduleSave(sp, 'Notiz', ta.value, `.note-field[data-sp="${sp}"]`);
     });
   });
 
@@ -965,23 +1078,25 @@ function render(){
     inp.addEventListener('input', ()=>{
       const req = getReq(sp);
       req[key] = inp.value;
-      scheduleSave(sp, key, inp.value);
+      scheduleSave(sp, key, inp.value, `.gast-field[data-sp="${sp}"][data-name="${name}"]`);
     });
   });
 
   container.querySelectorAll('.person.me').forEach(p=>{
     const name = p.dataset.name;
     const sp = p.dataset.sp;
+    const cap = Number(p.dataset.cap) || DEFAULT_CAPACITY;
+    const flashSel = `.person[data-sp="${sp}"][data-name="${name}"] .val`;
     p.querySelector('.inc').addEventListener('click', ()=>{
       const req = getReq(sp);
-      req[name] = Math.min(CAPACITY, req[name]+1);
-      scheduleSave(sp, name, req[name]);
+      req[name] = Math.min(cap, req[name]+1);
+      scheduleSave(sp, name, req[name], flashSel);
       render();
     });
     p.querySelector('.dec').addEventListener('click', ()=>{
       const req = getReq(sp);
       req[name] = Math.max(0, req[name]-1);
-      scheduleSave(sp, name, req[name]);
+      scheduleSave(sp, name, req[name], flashSel);
       render();
     });
   });
@@ -1024,9 +1139,10 @@ function renderBilling(){
   const usedByPerson = {Leo:0,Andy:0,Oli:0,Bodo:0};
   let totalUsed = 0;
 
-  const rows = GAMES.map(g=>{
+  const rows = GAMES.filter(g => getCapacity(getReq(g.sp)) > 0).map(g=>{
     const req = getReq(g.sp);
-    const alloc = allocate(req);
+    const capacity = getCapacity(req);
+    const alloc = allocate(req, capacity);
     const used = NAMES.reduce((s,n)=>s+alloc[n],0);
     totalUsed += used;
     NAMES.forEach(n=> usedByPerson[n] += alloc[n]);
@@ -1042,7 +1158,7 @@ function renderBilling(){
             ${g.opp}
           </div>
         </td>
-        <td>${used} / ${CAPACITY}</td>
+        <td>${used} / ${capacity}</td>
         <td class="bt-split">${split}</td>
         <td class="bt-cost" style="text-align:right;">${cost.toFixed(2)} €</td>
       </tr>
@@ -1079,10 +1195,69 @@ function renderBilling(){
   }).join('');
 }
 
-document.getElementById('reloadBtn').addEventListener('click', async ()=>{
+async function refreshAll(){
   await fetchFixtures();
   await loadData();
-});
+}
+
+document.getElementById('reloadBtn').addEventListener('click', refreshAll);
+
+// --- Pull-to-refresh (nur relevant auf Touch-Geräten wie dem iPhone) ---
+(function(){
+  const indicator = document.getElementById('pullIndicator');
+  const PULL_THRESHOLD = 70;
+  let startY = null;
+  let pulling = false;
+  let refreshing = false;
+
+  document.addEventListener('touchstart', (e)=>{
+    if(document.getElementById('app').classList.contains('app-hidden')) return;
+    if(window.scrollY <= 0 && !refreshing){
+      startY = e.touches[0].clientY;
+    } else {
+      startY = null;
+    }
+  }, {passive:true});
+
+  document.addEventListener('touchmove', (e)=>{
+    if(startY === null || refreshing) return;
+    const dy = e.touches[0].clientY - startY;
+    if(dy > 0 && window.scrollY <= 0){
+      pulling = true;
+      const dist = Math.min(dy, 100);
+      indicator.classList.add('visible');
+      indicator.style.transform = `translateY(${dist - 100 + 40}px)`;
+      if(dy > PULL_THRESHOLD){
+        indicator.classList.add('ready');
+        indicator.textContent = '↑ Loslassen zum Aktualisieren';
+      } else {
+        indicator.classList.remove('ready');
+        indicator.textContent = '↓ Ziehen zum Aktualisieren';
+      }
+    }
+  }, {passive:true});
+
+  document.addEventListener('touchend', async (e)=>{
+    if(!pulling){ startY = null; return; }
+    const wasReady = indicator.classList.contains('ready');
+    indicator.classList.remove('visible', 'ready');
+    indicator.style.transform = '';
+    pulling = false;
+    startY = null;
+
+    if(wasReady && !refreshing){
+      refreshing = true;
+      indicator.classList.add('loading');
+      indicator.textContent = 'Aktualisiere…';
+      await refreshAll();
+      setTimeout(()=>{
+        indicator.classList.remove('loading');
+        refreshing = false;
+      }, 400);
+    }
+  });
+})();
+
 
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
