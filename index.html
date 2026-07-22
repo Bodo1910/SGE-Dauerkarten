@@ -481,6 +481,14 @@
     padding:3px 0;
   }
   .bill-line b{color:var(--cream); font-weight:700;}
+  .prepaid-edit-line{align-items:center;}
+  .prepaid-edit{display:flex; align-items:center; gap:5px; color:var(--cream);}
+  .prepaid-field{
+    width:70px; background:var(--panel-2); border:1px solid var(--line);
+    color:var(--gold); font-family:'Space Mono',monospace; font-weight:700;
+    font-size:16px; padding:4px 6px; text-align:right;
+  }
+  .prepaid-field:focus{outline:none; border-color:var(--red);}
   .bill-saldo{
     margin-top:10px; padding-top:10px;
     border-top:1px dashed var(--line);
@@ -770,7 +778,7 @@ async function fetchFixtures(){
 const NAMES = ['Leo','Andy','Oli','Bodo'];
 const DEFAULT_CAPACITY = 5; // Fallback, falls für einen Spieltag noch kein Kartenangebot hinterlegt ist
 const PRICE = 42;
-const PREPAID = {Leo:0, Andy:0, Oli:0, Bodo:0};
+let PREPAID = {Leo:0, Andy:0, Oli:0, Bodo:0}; // wird beim Laden aus dem "Prepaid"-Tab des Sheets überschrieben
 
 // Nach dem Setup (siehe Setup-Anleitung.md) hier die Web-App-URL aus Google Apps Script eintragen:
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzQcnd3lfHQOkSM4aL3baMQVtA-7u5YohSGdYwrXoKwlY65eX8kBIY_ebp4S6DaSmz8/exec';
@@ -883,11 +891,32 @@ async function loadData(){
     if(result.ok){
       selections = {};
       Object.keys(result.data).forEach(sp=>{ selections[sp] = Object.assign(emptyReq(), result.data[sp]); });
+      if(result.prepaid){
+        NAMES.forEach(n=>{ PREPAID[n] = Number(result.prepaid[n]) || 0; });
+      }
     }
   }catch(e){
     console.error('Laden fehlgeschlagen', e);
   }
   render();
+}
+
+async function savePrepaid(name, amount){
+  PREPAID[name] = amount;
+  setSyncState('saving');
+  try{
+    const result = await callApi({
+      action:'savePrepaid',
+      username: currentUser.username,
+      password: currentUser.password,
+      name, amount
+    });
+    setSyncState(result.ok ? 'saved' : 'error');
+    if(result.ok) flashField(`.prepaid-field[data-name="${name}"]`);
+    if(!result.ok) console.error(result.error);
+  }catch(e){
+    setSyncState('error');
+  }
 }
 
 function scheduleSave(sp, person, value, flashSelector){
@@ -1180,10 +1209,18 @@ function renderBilling(){
   document.getElementById('billSummary').innerHTML = NAMES.map(n=>{
     const cost = usedByPerson[n] * PRICE;
     const saldo = PREPAID[n] - cost;
+    const prepaidLine = currentUser.name === 'Bodo'
+      ? `<div class="bill-line prepaid-edit-line">
+          <span>Vorausgezahlt</span>
+          <span class="prepaid-edit">
+            <input type="number" class="prepaid-field" data-name="${n}" value="${PREPAID[n]}" step="1" min="0"> €
+          </span>
+        </div>`
+      : `<div class="bill-line"><span>Vorausgezahlt</span><b>${PREPAID[n].toFixed(2)} €</b></div>`;
     return `
       <div class="bill-card">
         <div class="bname">${n}</div>
-        <div class="bill-line"><span>Vorausgezahlt</span><b>${PREPAID[n].toFixed(2)} €</b></div>
+        ${prepaidLine}
         <div class="bill-line"><span>Genutzte Karten</span><b>${usedByPerson[n]}</b></div>
         <div class="bill-line"><span>Kosten (à ${PRICE} €)</span><b>${cost.toFixed(2)} €</b></div>
         <div class="bill-saldo">
@@ -1193,6 +1230,21 @@ function renderBilling(){
       </div>
     `;
   }).join('');
+
+  if(currentUser.name === 'Bodo'){
+    document.querySelectorAll('.prepaid-field').forEach(inp=>{
+      const name = inp.dataset.name;
+      let debounceTimer = null;
+      inp.addEventListener('input', ()=>{
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(()=>{
+          let val = parseFloat(inp.value);
+          if(isNaN(val) || val < 0) val = 0;
+          savePrepaid(name, val).then(()=> renderBilling());
+        }, 500);
+      });
+    });
+  }
 }
 
 async function refreshAll(){
