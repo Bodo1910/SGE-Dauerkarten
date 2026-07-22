@@ -487,8 +487,14 @@
     width:70px; background:var(--panel-2); border:1px solid var(--line);
     color:var(--gold); font-family:'Space Mono',monospace; font-weight:700;
     font-size:16px; padding:4px 6px; text-align:right;
+    -moz-appearance:textfield;
   }
   .prepaid-field:focus{outline:none; border-color:var(--red);}
+  .prepaid-field::-webkit-outer-spin-button,
+  .prepaid-field::-webkit-inner-spin-button{
+    -webkit-appearance:none;
+    margin:0;
+  }
   .bill-saldo{
     margin-top:10px; padding-top:10px;
     border-top:1px dashed var(--line);
